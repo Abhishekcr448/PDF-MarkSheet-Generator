@@ -1,5 +1,6 @@
 # Created by Abhishek.A.Khatri
 
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 import tkinter.font as TkFont
@@ -20,6 +21,10 @@ class GUIstructure(ABC, tk.Tk):
         ABC.__init__(self)
         tk.Tk.__init__(self)
 
+        # Binding the "WM_DELETE_WINDOW" protocol to the window
+        # to call the close_window function on clicking 'x' button
+        self.protocol("WM_DELETE_WINDOW", self.close_window)
+
         # Defining initial size
         self.minsize(750, 450)
         self.maxsize(750, 450)
@@ -34,7 +39,7 @@ class GUIstructure(ABC, tk.Tk):
         # Setting basic text font size
         self.font1 = TkFont.Font(family="MS Serif", size=18)
         self.font2 = TkFont.Font(family="MS Serif", size=16)
-        self.font3 = TkFont.Font(family="MS Serif", size=14)
+        self.font3 = TkFont.Font(family="MS Serif", size=13)
 
         # Loading pre-defines server details
         self.HostList = []
@@ -59,6 +64,17 @@ class GUIstructure(ABC, tk.Tk):
         self.DBtext = ""
         self.Tbtext = ""
         self.totalMarkstext = ""
+        self.passingMarkstext = ""
+
+    def close_window(self):
+        """
+        A function that distroyes any running process before closing the window
+        """
+        # Terminate any background threads or processes
+        # Destroy the tkinter window
+        self.destroy()
+        # Forcefully terminate the script
+        sys.exit()
 
 
 class StartUp(GUIstructure):
@@ -77,7 +93,7 @@ class StartUp(GUIstructure):
         canvas0.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas0.create_image(80, 392, image=self.background_image, anchor="nw")
+        canvas0.create_image(80, 386, image=self.background_image, anchor="nw")
 
         # Text, Entry and combobox to get the server details from user
         canvas0.create_text(360, 20, text="Enter the Sever details",
@@ -181,7 +197,7 @@ class Page1(StartUp):
         canvas1.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas1.create_image(80, 392, image=self.background_image, anchor="nw")
+        canvas1.create_image(80, 386, image=self.background_image, anchor="nw")
 
         # Text and button for the first combobox
         canvas1.create_text(200, 80, text="Select Field",
@@ -223,15 +239,19 @@ class Page1(StartUp):
                 self.DBname, self.TbName)
             self.RollNo.config(values=tempList)
 
-            # to update the self variables 'DBname' and 'TbName'
+            # to update the self variables 'DBname', 'TbName', 'totalMarks', 'passingMarks'
             self.DBname = self.DBchoosen.get()
             self.TbName = self.TbChoosen.get()
+            tempList = self._UserInstance.getTotalAndPassingMarks(self.DBname, self.TbName)
+            self.totalMarks, self.passingMarks = tempList[0], tempList[1]
 
             # Adding DB name and Bundle name to the preview on frame5
             self.canvas5.itemconfig(self.DBtext, text=self.DBname)
             self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
             self.canvas5.itemconfig(
                 self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
+            self.canvas5.itemconfig(
+                self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
 
             # To go to frame4
             self.show_frame4()
@@ -389,7 +409,7 @@ class Page2(Page1):
         canvas2.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas2.create_image(80, 392, image=self.background_image, anchor="nw")
+        canvas2.create_image(80, 386, image=self.background_image, anchor="nw")
 
         # Adding the Back Button
         back2 = tk.Button(self.frame2, text="Back", command=self.show_frame1)
@@ -489,7 +509,7 @@ class Page2(Page1):
 
                 def do_work():
                     self._UserInstance.createDB(FieldEntry.get(), BundleEntry.get(),
-                                                RollStart.get(), RollEnd.get(), TotalMarksEntry.get())
+                                                RollStart.get(), RollEnd.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
                     # Initialising DBname, TbName, totalMarks and passingMarks variables to store the data on this instance
                     self.DBname = FieldEntry.get()
                     self.TbName = BundleEntry.get()
@@ -505,6 +525,8 @@ class Page2(Page1):
                     self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
                     self.canvas5.itemconfig(
                         self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
+                    self.canvas5.itemconfig(
+                        self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
 
                     self.show_frame4()
                     self.frame2.after(0, lambda: self.frame2.config(cursor=""))
@@ -560,7 +582,7 @@ class Page3(Page2):
         canvas3.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas3.create_image(80, 392, image=self.background_image, anchor="nw")
+        canvas3.create_image(80, 386, image=self.background_image, anchor="nw")
 
         def goingBack():
             """
@@ -665,7 +687,7 @@ class Page3(Page2):
 
                 def do_work():
                     self._UserInstance.createTb(self.DBname, BundleEntry.get(), RollStart.get(),
-                                                RollEnd.get(), TotalMarksEntry.get())
+                                                RollEnd.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
                     # Initialising TbName, totalMarks and passingMarks variables to store the data on this instance
                     self.TbName = BundleEntry.get()
                     self.totalMarks = TotalMarksEntry.get()
@@ -681,6 +703,8 @@ class Page3(Page2):
                     self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
                     self.canvas5.itemconfig(
                         self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
+                    self.canvas5.itemconfig(
+                        self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
 
                     self.show_frame4()
                     self.frame3.after(0, lambda: self.frame3.config(cursor=""))
@@ -719,7 +743,7 @@ class Page4(Page3):
         canvas4.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas4.create_image(80, 392, image=self.background_image, anchor="nw")
+        canvas4.create_image(80, 386, image=self.background_image, anchor="nw")
 
         # Text, Entry and combobox for adding details and marks
         canvas4.create_text(360, 20, text="Marks Entry",
@@ -1269,14 +1293,16 @@ class Page5(Page4):
 
         # Calling the background image
         self.canvas5.create_image(
-            80, 392, image=self.background_image, anchor="nw")
+            80, 386, image=self.background_image, anchor="nw")
 
         # Details
         self.DBtext = self.canvas5.create_text(300, 20, text=str(self.DBname),
                                                fill="white", font=self.font3)
         self.Tbtext = self.canvas5.create_text(200, 60, text=str(self.TbName),
                                                fill="white", font=self.font3)
-        self.totalMarkstext = self.canvas5.create_text(600, 60, text="Total Marks: "+str(self.totalMarks),
+        self.totalMarkstext = self.canvas5.create_text(600, 40, text="Total Marks: "+str(self.totalMarks),
+                                                       fill="white", font=self.font3)
+        self.passingMarkstext = self.canvas5.create_text(600, 60, text="Passing Marks: "+str(self.passingMarks),
                                                        fill="white", font=self.font3)
 
         # add a table to the canvas

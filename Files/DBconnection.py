@@ -61,7 +61,7 @@ class DBconnect:
 
         return output
 
-    def insertValues(self, DBname, TableName, lowPRN, highPRN, totalMarks):
+    def insertValues(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
         """
         This function adds many new StudentIDs to the new Table
         """
@@ -93,7 +93,7 @@ class DBconnect:
 
         # Initialy adding the total Marks value in the StudentID itself
         self.__cursorInsatnce.execute(
-            "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('TotalMarks:"+str(totalMarks)+"','-','-','-','-','-');")
+            "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('TotalMarks:"+str(totalMarks)+"','PassingMarks:"+str(passingMarks)+"','-','-','-','-');")
 
         # Adding all the StudenIDs in the given Table
         diff = int(newhighPRN[1]) - int(newlowPRN[1]) + 1
@@ -106,7 +106,7 @@ class DBconnect:
                 "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('"+newlowPRN[0]+str(int(newlowPRN[1])+i)+"','P','-','-','-','-');")
         self.__connectionInstance.commit()
 
-    def createTb(self, DBname, TableName, lowPRN, highPRN, totalMarks):
+    def createTb(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
         """
         This funtion creates a new table into the given DB,
         to create a new bundle of papers
@@ -114,12 +114,13 @@ class DBconnect:
         # To create new Table
         self.__cursorInsatnce.execute("USE "+DBname+";")
         self.__cursorInsatnce.execute(
-            "CREATE TABLE "+TableName + "(UniqueID INT NOT NULL AUTO_INCREMENT, StudentID varchar(20) NOT NULL, Attendance varchar(10) NOT NULL, ExaminerMarks varchar(10) NOT NULL, ModeratorOneMarks varchar(10) NOT NULL, ModeratorTwoMarks varchar(10) NOT NULL, FinalMarks varchar(10) NOT NULL, PRIMARY KEY (UniqueID),UNIQUE INDEX StudentID_UNIQUE (StudentID ASC) VISIBLE);")
+            "CREATE TABLE "+TableName + "(UniqueID INT NOT NULL AUTO_INCREMENT, StudentID varchar(20) NOT NULL, Attendance varchar(20) NOT NULL, ExaminerMarks varchar(10) NOT NULL, ModeratorOneMarks varchar(10) NOT NULL, ModeratorTwoMarks varchar(10) NOT NULL, FinalMarks varchar(10) NOT NULL, PRIMARY KEY (UniqueID),UNIQUE INDEX StudentID_UNIQUE (StudentID ASC) VISIBLE);")
 
         # calling insertValues function to add all Student IDs
-        self.insertValues(DBname, TableName, lowPRN, highPRN, totalMarks)
+        self.insertValues(DBname, TableName, lowPRN,
+                          highPRN, totalMarks, passingMarks)
 
-    def createDB(self, DBname, TableName, lowPRN, highPRN, totalMarks):
+    def createDB(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
         """
         This funtion creates a new database to create
         a new set of bundles of papers and then redirects
@@ -127,7 +128,8 @@ class DBconnect:
         """
         # To create new DB and a new Table
         self.__cursorInsatnce.execute("CREATE DATABASE "+DBname+";")
-        self.createTb(DBname, TableName, lowPRN, highPRN, totalMarks)
+        self.createTb(DBname, TableName, lowPRN,
+                      highPRN, totalMarks, passingMarks)
 
     def StudentIDlist(self, DBname, TableName):
         """
@@ -174,6 +176,18 @@ class DBconnect:
         self.__cursorInsatnce.execute(
             "SELECT "+MarksType+" FROM "+TableName + " WHERE StudentID='"+StudentID+"';")
         return self.__cursorInsatnce.fetchall()[0][str(MarksType)]
+
+    def getTotalAndPassingMarks(self, DBname, TableName):
+        """
+        This functions returns a list contaning totalMarks and passingMarks
+        stored at the first row of the table
+        """
+        # To fetch totalMarks and PassingMarks
+        self.__cursorInsatnce.execute("USE "+DBname+";")
+        self.__cursorInsatnce.execute(
+            "SELECT * FROM "+TableName + " WHERE UniqueID=1;")
+        output = self.__cursorInsatnce.fetchall()
+        return float(output[0]["StudentID"][11:]), float(output[0]["Attendance"][13:])
 
     def updateValues(self, DBname, TableName, StudentID, valuesList):
         """
@@ -257,6 +271,7 @@ class DBconnect:
 # Testing commands below, Please Ignore...
 
 # t1 = DBconnect("localhost", "root", "abhishek")
+# print(t1.getTotalAndPassingMarks("IT_2022", "B_1"))
 # t1.DeleteRow("IT_2022", "B_1", "21b102")
 # print(t1.getColumns("IT_2023","B_1"))
 # t1.DropTable("a", "a1")

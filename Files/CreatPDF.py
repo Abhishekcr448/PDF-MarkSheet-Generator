@@ -108,16 +108,17 @@ class GeneratePDF():
         root.withdraw()
         file_path = filedialog.asksaveasfilename(
             defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
-        if file_path:
+        
+        # Check if the file is created or the process is been cancelled
+        if file_path == ():
+            raise Exception("PDF creation cancelled")
+        
+        # else creating a pdf of the below properties
+        else:
             pdf_file = file_path
             pdf = SimpleDocTemplate(
                 pdf_file, pagesize=letter, title="MarkSheet")
             pdf.build(flowables, onFirstPage=watermark, onLaterPages=watermark)
-
-        # Check if the file is created or the process is been cancelled
-        # output_file = filedialog.asksaveasfilename(defaultextension=".pdf")
-        # if output_file == "":
-        #     raise Exception("PDF creation cancelled")
 
 
 # data = [['TotalMarks:100', '-', '-', '-', '-', '-'],
@@ -125,7 +126,7 @@ class GeneratePDF():
 #         ['2023B2', 'AB', '-', '-', '-', 'AB'],
 #         ['2023B3', 'AB', '-', '-', '-', 'AB'],
 #         ['2023B4', 'P', '-', '-', '-', '-'],
-#         ['2023B5','P', '-', '-', '-', '-'],
+#         ['2023B5', 'P', '-', '-', '-', '-'],
 #         ['2023B6', 'P', '-', '-', '-', '-'],
 #         ['2023B7', 'P', '-', '-', '-', '-'],
 #         ['2023B8', 'P', '-', '-', '-', '-'],
