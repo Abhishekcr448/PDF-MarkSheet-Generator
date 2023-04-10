@@ -61,52 +61,15 @@ class DBconnect:
 
         return output
 
-    def insertValues(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
+    def insertSingleRow(self, DBname, TableName, newlowPRN, i):
         """
-        This function adds many new StudentIDs to the new Table
+        This function inserts all the rows of the given bundle
         """
-        def refinePRN(prn):
-            """
-            A function returns two strings by dividing 
-            the given StudenID at the last alphabet
-            """
-            l = len(prn) - 1
-
-            # if cannot be divided then returs False
-            if prn[l].isdigit() == False:
-                return False, False
-
-            # finding the last alphabet
-            for i in range(1, l+1):
-                if prn[l-i].isdigit() == False:
-                    return prn[:l-i+1], prn[l-i+1:]
-
-        # To check if the given StudenIDs are digits or not
-        newhighPRN = refinePRN(
-            highPRN) if highPRN.isdigit() == False else ("", highPRN)
-        newlowPRN = refinePRN(
-            lowPRN) if lowPRN.isdigit() == False else ("", lowPRN)
-
-        # if the StudenID cannot be divided futher
-        if newhighPRN[0] == False or newlowPRN[0] == False:
-            raise Exception("No number present at the end of RollNo")
-
-        # Initialy adding the total Marks value in the StudentID itself
         self.__cursorInsatnce.execute(
-            "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('TotalMarks:"+str(totalMarks)+"','PassingMarks:"+str(passingMarks)+"','-','-','-','-');")
-
-        # Adding all the StudenIDs in the given Table
-        diff = int(newhighPRN[1]) - int(newlowPRN[1]) + 1
-
-        if diff <= 0:
-            raise Exception("The order of numbers is in non-increasing order")
-
-        for i in range(diff):
-            self.__cursorInsatnce.execute(
-                "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('"+newlowPRN[0]+str(int(newlowPRN[1])+i)+"','P','-','-','-','-');")
+            "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('"+newlowPRN[0]+str(int(newlowPRN[1])+i)+"','P','-','-','-','-');")
         self.__connectionInstance.commit()
 
-    def createTb(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
+    def createTb(self, DBname, TableName, totalMarks, passingMarks):
         """
         This funtion creates a new table into the given DB,
         to create a new bundle of papers
@@ -116,11 +79,11 @@ class DBconnect:
         self.__cursorInsatnce.execute(
             "CREATE TABLE "+TableName + "(UniqueID INT NOT NULL AUTO_INCREMENT, StudentID varchar(20) NOT NULL, Attendance varchar(20) NOT NULL, ExaminerMarks varchar(10) NOT NULL, ModeratorOneMarks varchar(10) NOT NULL, ModeratorTwoMarks varchar(10) NOT NULL, FinalMarks varchar(10) NOT NULL, PRIMARY KEY (UniqueID),UNIQUE INDEX StudentID_UNIQUE (StudentID ASC) VISIBLE);")
 
-        # calling insertValues function to add all Student IDs
-        self.insertValues(DBname, TableName, lowPRN,
-                          highPRN, totalMarks, passingMarks)
+        # Initialy adding the total Marks value in the StudentID itself
+        self.__cursorInsatnce.execute(
+            "INSERT INTO "+DBname+"."+TableName+" (StudentID, Attendance, ExaminerMarks, ModeratorOneMarks, ModeratorTwoMarks, FinalMarks) VALUES ('TotalMarks:"+str(totalMarks)+"','PassingMarks:"+str(passingMarks)+"','-','-','-','-');")
 
-    def createDB(self, DBname, TableName, lowPRN, highPRN, totalMarks, passingMarks):
+    def createDB(self, DBname, TableName, totalMarks, passingMarks):
         """
         This funtion creates a new database to create
         a new set of bundles of papers and then redirects
@@ -128,8 +91,7 @@ class DBconnect:
         """
         # To create new DB and a new Table
         self.__cursorInsatnce.execute("CREATE DATABASE "+DBname+";")
-        self.createTb(DBname, TableName, lowPRN,
-                      highPRN, totalMarks, passingMarks)
+        self.createTb(DBname, TableName, totalMarks, passingMarks)
 
     def StudentIDlist(self, DBname, TableName):
         """

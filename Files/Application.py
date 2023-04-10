@@ -1,21 +1,71 @@
-# Created by Abhishek.A.Khatri
-
 import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 import tkinter.font as TkFont
+from ttkbootstrap import Style
 from Files.DBconnection import DBconnect
 from abc import ABC, abstractmethod
 from Files.CreatPDF import GeneratePDF
 import threading
+import cv2
+from PIL import Image, ImageTk
+import time
 
 
-class GUIstructure(ABC, tk.Tk):
+class VideoPlayer:
     """
-    This Class is an abstract class that defines
-    the structure of the GUI of the aaplication
+    This class is used to create the video instance and place it 
+    on the given label
     """
 
+    def __init__(self, video_file):
+        """
+        Constructor method to initialize the video file path.
+        """
+        self.video_file = video_file
+
+    def play(self, panel):
+        """
+        This function plays the video on the given label widget.
+        Args: panel (tk.Label): Label widget to display the video frames.
+        """
+        # Create a VideoCapture object to read video frames from the video file.
+        cap = cv2.VideoCapture(self.video_file)
+        # Get the total number of frames in the video.
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        # Loop through each video frame until the end of the video file is reached.
+        while cap.isOpened():
+            # Read a single frame from the video file.
+            ret, frame = cap.read()
+
+            # If no frame was read, break out of the loop.
+            if not ret:
+                break
+
+            # Convert the frame from BGR to RGB format and create a PIL Image object.
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
+
+            # Create a PhotoImage object from the PIL Image and set it as the label image.
+            photo = ImageTk.PhotoImage(image)
+            panel.config(image=photo)
+            panel.image = photo
+            panel.update()
+
+            # Pause for a short amount of time between frames to simulate video playback.
+            panel.after(5)
+
+            # Check if the current frame is the last frame in the video.
+            current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+            if current_frame == total_frames:
+                break
+
+        # Release the video file resources.
+        cap.release()
+
+
+class GUIstructure(ABC, tk.Tk, VideoPlayer):
     @abstractmethod
     def __init__(self) -> None:
         ABC.__init__(self)
@@ -32,8 +82,12 @@ class GUIstructure(ABC, tk.Tk):
         # Setting Title
         self.title("PDF MarkSheet Generator")
 
+        # Initialising style of the window
+        self.style = Style(theme="darkly")
+        self.style.theme_use("darkly")
+
         # Create the background image and info-button image
-        self.background_image = tk.PhotoImage(file="resources/bg2.png")
+        # self.background_image = tk.PhotoImage(file="resources/bg2.png")
         self.InfoImg = tk.PhotoImage(file="resources/infoIcon.png")
 
         # Setting basic text font size
@@ -53,18 +107,36 @@ class GUIstructure(ABC, tk.Tk):
             self.UserList.append(templist[1])
         f1.close()
 
-        # Seting DB instances
-        self.totalMarks = 100
-        self.passingMarks = 30
-        self.table = ""
-        self._UserInstance = "A temporary String for DB object"
-        self.DBname = "A temporary String for DB name"
-        self.TbName = "A temporary String for Table name"
-        self.canvas5 = ""
-        self.DBtext = ""
-        self.Tbtext = ""
-        self.totalMarkstext = ""
-        self.passingMarkstext = ""
+        # Seting DB instances whose values will be changed
+        self.totalMarks = 100  # Predefined total marks
+        self.passingMarks = 30  # Predefined passing marks
+        self.table = "Initialising table for the preview on frame 5"
+        self._UserInstance = "An instance of the current user created to connect to it's mysql DB"
+        self.DBname = "To store the DB name"
+        self.TbName = "To store the Table name"
+        self.canvas5 = "An instanse of canvas is created To add text on frame 5 from frame 1"
+        self.DBtext = "Instance of the DB text to call it on frame 1"
+        self.Tbtext = "Instance of the Table text to call it on frame 1"
+        self.totalMarkstext = "Instance of text of Total Marks"
+        self.passingMarkstext = "Instance of text of Passing Marks"
+
+        def center_window(self, width=300, height=200):
+            """
+            This function spawns the window at the center of the screen
+            """
+            # Get screen width and height
+            screen_width = self.winfo_screenwidth()
+            screen_height = self.winfo_screenheight()
+
+            # Calculate x and y coordinates to center the window
+            x = (screen_width/2) - (width/2)
+            y = (screen_height/2) - (height/2)
+
+            # Set the dimensions of the screen and where it is placed
+            self.geometry('%dx%d+%d+%d' % (width, height, x, y))
+
+        # Call the center_window function to center the window on the screen
+        center_window(self, 750, 450)
 
     def close_window(self):
         """
@@ -78,25 +150,22 @@ class GUIstructure(ABC, tk.Tk):
 
 
 class StartUp(GUIstructure):
-    """
-    This class creates the first page 
-    that requests the server details
-    """
-
     def __init__(self) -> None:
         super().__init__()
 
-        self.startup = tk.Frame(self)
+        self.startup = ttk.Frame(self)
 
         # Creating Page1 Canvas
-        canvas0 = tk.Canvas(self.startup, width=750, height=450, bg="black")
+        canvas0 = tk.Canvas(self.startup, width=750, height=450)
         canvas0.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas0.create_image(80, 386, image=self.background_image, anchor="nw")
+        # canvas0.create_image(80, 380, image=self.background_image, anchor="nw")
+        canvas0.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Text, Entry and combobox to get the server details from user
-        canvas0.create_text(360, 20, text="Enter the Sever details",
+        canvas0.create_text(360, 20, text="Enter the Server details",
                             fill="white", font=self.font1)
         canvas0.create_text(250, 80, text="Host:",
                             fill="white", font=self.font1)
@@ -178,9 +247,6 @@ class StartUp(GUIstructure):
                             command=lambda: messagebox.showinfo("Login", "Enter your mysql HostID, Username and Password"))
         canvas0.create_window(715, 30, window=infoBtn)
 
-        # Show the first frame
-        self.startup.pack()
-
 
 class Page1(StartUp):
     """
@@ -190,14 +256,16 @@ class Page1(StartUp):
     def __init__(self) -> None:
         super().__init__()
 
-        self.frame1 = tk.Frame(self)
+        self.frame1 = ttk.Frame(self)
 
         # Creating Page1 Canvas
         canvas1 = tk.Canvas(self.frame1, width=750, height=450, bg="black")
         canvas1.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas1.create_image(80, 386, image=self.background_image, anchor="nw")
+        # canvas1.create_image(80, 386, image=self.background_image, anchor="nw")
+        canvas1.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Text and button for the first combobox
         canvas1.create_text(200, 80, text="Select Field",
@@ -242,7 +310,8 @@ class Page1(StartUp):
             # to update the self variables 'DBname', 'TbName', 'totalMarks', 'passingMarks'
             self.DBname = self.DBchoosen.get()
             self.TbName = self.TbChoosen.get()
-            tempList = self._UserInstance.getTotalAndPassingMarks(self.DBname, self.TbName)
+            tempList = self._UserInstance.getTotalAndPassingMarks(
+                self.DBname, self.TbName)
             self.totalMarks, self.passingMarks = tempList[0], tempList[1]
 
             # Adding DB name and Bundle name to the preview on frame5
@@ -402,14 +471,16 @@ class Page2(Page1):
     def __init__(self) -> None:
         super().__init__()
 
-        self.frame2 = tk.Frame(self)
+        self.frame2 = ttk.Frame(self)
 
         # Creating Page1 Canvas
         canvas2 = tk.Canvas(self.frame2, width=750, height=450, bg="black")
         canvas2.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas2.create_image(80, 386, image=self.background_image, anchor="nw")
+        # canvas2.create_image(80, 386, image=self.background_image, anchor="nw")
+        canvas2.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Adding the Back Button
         back2 = tk.Button(self.frame2, text="Back", command=self.show_frame1)
@@ -459,6 +530,11 @@ class Page2(Page1):
         PassingMarksEntry.insert(0, "30")
         canvas2.create_window(580, 290, window=PassingMarksEntry)
 
+        # Create a progress bar widget
+        progress_bar = ttk.Progressbar(
+            self.frame2, orient="horizontal", mode="determinate", length=750, style="success.Horizontal.TProgressbar")
+        canvas2.create_window(375, 400, window=progress_bar, state="hidden")
+
         def NoNumErrorMSG(e):
             """
             This function creates a error msg
@@ -475,14 +551,64 @@ class Page2(Page1):
                 NoNumErrorMSG("Some Feilds are empty")
                 return
 
+            # To check if first character of the name is not number
+            if FieldEntry.get()[0].isdigit():
+                NoNumErrorMSG(
+                    "First character of the Field name cannot be numeric")
+                return
+            if BundleEntry.get()[0].isdigit():
+                NoNumErrorMSG(
+                    "First character of the Bundle name cannot be numeric")
+                return
+
+            # To check if any special charachters exsist in the name
+            not_allowed_chars = [' ', '.', ',', ':', ';', '/', '\\', '[', ']',
+                                 '{', '}', '(', ')', '<', '>', '|', '?', '*', "'", '"', '-', '+', '*']
+
+            def is_valid_table_name(table_name):
+                for char in not_allowed_chars:
+                    if char in table_name:
+                        return False
+                return True
+            if is_valid_table_name(FieldEntry.get()) == False:
+                NoNumErrorMSG(
+                    "Special charachters and spaces not allowed in Feild name")
+                return
+            if is_valid_table_name(BundleEntry.get()) == False:
+                NoNumErrorMSG(
+                    "Special charachters and spaces not allowed in Bundle name")
+                return
+
+            # Error if spaces exsist in Field name or Table name
+            if " " in FieldEntry.get():
+                NoNumErrorMSG("Feilds name cannot have spaces")
+                return
+            if " " in BundleEntry.get():
+                NoNumErrorMSG("Bundle name cannot have spaces")
+                return
+
             # To check if Field or Bundle names are not mysql keywords
-            if FieldEntry.get() == "as" or BundleEntry.get() == "as":
-                NoNumErrorMSG("Feild or Table name cannot be 'as'")
+            reversedKerwords = ['A', 'ABORT', 'ABS', 'ABSOLUTE', 'ACCESS', 'ACTION', 'ADA', 'ADD', 'ADMIN', 'AFTER', 'AGGREGATE', 'ALIAS', 'ALL', 'ALLOCATE', 'ALSO', 'ALTER', 'ALWAYS', 'ANALYSE', 'ANALYZE', 'AND', 'ANY', 'ARE', 'ARRAY', 'AS', 'ASC', 'ASENSITIVE', 'ASSERTION', 'ASSIGNMENT', 'ASYMMETRIC', 'AT', 'ATOMIC', 'ATTRIBUTE', 'ATTRIBUTES', 'AUDIT', 'AUTHORIZATION', 'AUTO_INCREMENT', 'AVG', 'AVG_ROW_LENGTH', 'BACKUP', 'BACKWARD', 'BEFORE', 'BEGIN', 'BERNOULLI', 'BETWEEN', 'BIGINT', 'BINARY', 'BIT', 'BIT_LENGTH', 'BITVAR', 'BLOB', 'BOOL', 'BOOLEAN', 'BOTH', 'BREADTH', 'BREAK', 'BROWSE', 'BULK', 'BY', 'C', 'CACHE', 'CALL', 'CALLED', 'CARDINALITY', 'CASCADE', 'CASCADED', 'CASE', 'CAST', 'CATALOG', 'CATALOG_NAME', 'CEIL', 'CEILING', 'CHAIN', 'CHANGE', 'CHAR', 'CHAR_LENGTH', 'CHARACTER', 'CHARACTER_LENGTH', 'CHARACTER_SET_CATALOG', 'CHARACTER_SET_NAME', 'CHARACTER_SET_SCHEMA', 'CHARACTERISTICS', 'CHARACTERS', 'CHECK', 'CHECKED', 'CHECKPOINT', 'CHECKSUM', 'CLASS', 'CLASS_ORIGIN', 'CLOB', 'CLOSE', 'CLUSTER', 'CLUSTERED', 'COALESCE', 'COBOL', 'COLLATE', 'COLLATION', 'COLLATION_CATALOG', 'COLLATION_NAME', 'COLLATION_SCHEMA', 'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COLUMNS', 'COMMAND_FUNCTION', 'COMMAND_FUNCTION_CODE', 'COMMENT', 'COMMIT', 'COMMITTED', 'COMPLETION', 'COMPRESS', 'COMPUTE', 'CONDITION', 'CONDITION_NUMBER', 'CONNECT', 'CONNECTION', 'CONNECTION_NAME', 'CONSTRAINT', 'CONSTRAINT_CATALOG', 'CONSTRAINT_NAME', 'CONSTRAINT_SCHEMA', 'CONSTRAINTS', 'CONSTRUCTOR', 'CONTAINS', 'CONTAINSTABLE', 'CONTINUE', 'CONVERSION', 'CONVERT', 'COPY', 'CORR', 'CORRESPONDING', 'COUNT', 'COVAR_POP', 'COVAR_SAMP', 'CREATE', 'CREATEDB', 'CREATEROLE', 'CREATEUSER', 'CROSS', 'CSV', 'CUBE', 'CUME_DIST', 'CURRENT', 'CURRENT_DATE', 'CURRENT_DEFAULT_TRANSFORM_GROUP', 'CURRENT_PATH', 'CURRENT_ROLE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_TRANSFORM_GROUP_FOR_TYPE', 'CURRENT_USER', 'CURSOR', 'CURSOR_NAME', 'CYCLE', 'DATA', 'DATABASE', 'DATABASES', 'DATE', 'DATETIME', 'DATETIME_INTERVAL_CODE', 'DATETIME_INTERVAL_PRECISION', 'DAY', 'DAY_HOUR', 'DAY_MICROSECOND', 'DAY_MINUTE', 'DAY_SECOND', 'DAYOFMONTH', 'DAYOFWEEK', 'DAYOFYEAR', 'DBCC', 'DEALLOCATE', 'DEC', 'DECIMAL', 'DECLARE', 'DEFAULT', 'DEFAULTS', 'DEFERRABLE', 'DEFERRED', 'DEFINED', 'DEFINER', 'DEGREE', 'DELAY_KEY_WRITE', 'DELAYED', 'DELETE', 'DELIMITER', 'DELIMITERS', 'DENSE_RANK', 'DENY', 'DEPTH', 'DEREF', 'DERIVED', 'DESC', 'DESCRIBE', 'DESCRIPTOR', 'DESTROY', 'DESTRUCTOR', 'DETERMINISTIC', 'DIAGNOSTICS', 'DICTIONARY', 'DISABLE', 'DISCONNECT', 'DISK', 'DISPATCH', 'DISTINCT', 'DISTINCTROW', 'DISTRIBUTED', 'DIV', 'DO', 'DOMAIN', 'DOUBLE', 'DROP', 'DUAL', 'DUMMY', 'DUMP', 'DYNAMIC', 'DYNAMIC_FUNCTION', 'DYNAMIC_FUNCTION_CODE', 'EACH', 'ELEMENT', 'ELSE', 'ELSEIF', 'ENABLE', 'ENCLOSED', 'ENCODING', 'ENCRYPTED', 'END', 'END-EXEC', 'ENUM', 'EQUALS', 'ERRLVL', 'ESCAPE', 'ESCAPED', 'EVERY', 'EXCEPT', 'EXCEPTION', 'EXCLUDE', 'EXCLUDING', 'EXCLUSIVE', 'EXEC', 'EXECUTE', 'EXISTING', 'EXISTS', 'EXIT', 'EXP', 'EXPLAIN', 'EXTERNAL', 'EXTRACT', 'FALSE', 'FETCH', 'FIELDS', 'FILE', 'FILLFACTOR', 'FILTER', 'FINAL', 'FIRST', 'FLOAT', 'FLOAT4', 'FLOAT8', 'FLOOR', 'FLUSH', 'FOLLOWING', 'FOR', 'FORCE', 'FOREIGN', 'FORTRAN', 'FORWARD', 'FOUND', 'FREE', 'FREETEXT', 'FREETEXTTABLE', 'FREEZE', 'FROM', 'FULL', 'FULLTEXT', 'FUNCTION', 'FUSION', 'G', 'GENERAL', 'GENERATED', 'GET', 'GLOBAL', 'GO', 'GOTO', 'GRANT', 'GRANTED', 'GRANTS', 'GREATEST', 'GROUP', 'GROUPING', 'HANDLER', 'HAVING', 'HEADER', 'HEAP', 'HIERARCHY', 'HIGH_PRIORITY', 'HOLD', 'HOLDLOCK', 'HOST', 'HOSTS', 'HOUR', 'HOUR_MICROSECOND', 'HOUR_MINUTE', 'HOUR_SECOND', 'IDENTIFIED', 'IDENTITY', 'IDENTITY_INSERT', 'IDENTITYCOL', 'IF', 'IGNORE', 'ILIKE', 'IMMEDIATE', 'IMMUTABLE', 'IMPLEMENTATION', 'IMPLICIT', 'IN', 'INCLUDE', 'INCLUDING', 'INCREMENT', 'INDEX', 'INDICATOR', 'INFILE', 'INFIX', 'INHERIT', 'INHERITS', 'INITIAL', 'INITIALIZE', 'INITIALLY', 'INNER', 'INOUT', 'INPUT', 'INSENSITIVE', 'INSERT', 'INSERT_ID', 'INSTANCE', 'INSTANTIABLE', 'INSTEAD', 'INT', 'INT1', 'INT2', 'INT3', 'INT4', 'INT8', 'INTEGER', 'INTERSECT', 'INTERSECTION', 'INTERVAL', 'INTO', 'INVOKER', 'IS', 'ISAM', 'ISNULL', 'ISOLATION', 'ITERATE', 'JOIN', 'K', 'KEY', 'KEY_MEMBER', 'KEY_TYPE', 'KEYS', 'KILL', 'LANCOMPILER', 'LANGUAGE', 'LARGE', 'LAST', 'LAST_INSERT_ID', 'LATERAL', 'LEAD', 'LEADING', 'LEAST', 'LEAVE', 'LEFT', 'LENGTH', 'LESS', 'LEVEL', 'LIKE', 'LIMIT', 'LINENO', 'LINES', 'LISTEN', 'LN', 'LOAD', 'LOCAL', 'LOCALTIME', 'LOCALTIMESTAMP', 'LOCATION', 'LOCATOR', 'LOCK', 'LOGIN', 'LOGS', 'LONG', 'LONGBLOB', 'LONGTEXT', 'LOOP', 'LOW_PRIORITY', 'LOWER', 'M', 'MAP', 'MATCH', 'MATCHED', 'MAX', 'MAX_ROWS', 'MAXEXTENTS', 'MAXVALUE', 'MEDIUMBLOB', 'MEDIUMINT', 'MEDIUMTEXT', 'MEMBER', 'MERGE', 'MESSAGE_LENGTH', 'MESSAGE_OCTET_LENGTH', 'MESSAGE_TEXT', 'METHOD', 'MIDDLEINT', 'MIN', 'MIN_ROWS', 'MINUS', 'MINUTE', 'MINUTE_MICROSECOND', 'MINUTE_SECOND', 'MINVALUE', 'MLSLABEL', 'MOD',
+                                'MODE', 'MODIFIES', 'MODIFY', 'MODULE', 'MONTH', 'MONTHNAME', 'MORE', 'MOVE', 'MULTISET', 'MUMPS', 'MYISAM', 'NAME', 'NAMES', 'NATIONAL', 'NATURAL', 'NCHAR', 'NCLOB', 'NESTING', 'NEW', 'NEXT', 'NO', 'NO_WRITE_TO_BINLOG', 'NOAUDIT', 'NOCHECK', 'NOCOMPRESS', 'NOCREATEDB', 'NOCREATEROLE', 'NOCREATEUSER', 'NOINHERIT', 'NOLOGIN', 'NONCLUSTERED', 'NONE', 'NORMALIZE', 'NORMALIZED', 'NOSUPERUSER', 'NOT', 'NOTHING', 'NOTIFY', 'NOTNULL', 'NOWAIT', 'NULL', 'NULLABLE', 'NULLIF', 'NULLS', 'NUMBER', 'NUMERIC', 'OBJECT', 'OCTET_LENGTH', 'OCTETS', 'OF', 'OFF', 'OFFLINE', 'OFFSET', 'OFFSETS', 'OIDS', 'OLD', 'ON', 'ONLINE', 'ONLY', 'OPEN', 'OPENDATASOURCE', 'OPENQUERY', 'OPENROWSET', 'OPENXML', 'OPERATION', 'OPERATOR', 'OPTIMIZE', 'OPTION', 'OPTIONALLY', 'OPTIONS', 'OR', 'ORDER', 'ORDERING', 'ORDINALITY', 'OTHERS', 'OUT', 'OUTER', 'OUTFILE', 'OUTPUT', 'OVER', 'OVERLAPS', 'OVERLAY', 'OVERRIDING', 'OWNER', 'PACK_KEYS', 'PAD', 'PARAMETER', 'PARAMETER_MODE', 'PARAMETER_NAME', 'PARAMETER_ORDINAL_POSITION', 'PARAMETER_SPECIFIC_CATALOG', 'PARAMETER_SPECIFIC_NAME', 'PARAMETER_SPECIFIC_SCHEMA', 'PARAMETERS', 'PARTIAL', 'PARTITION', 'PASCAL', 'PASSWORD', 'PATH', 'PCTFREE', 'PERCENT', 'PERCENT_RANK', 'PERCENTILE_CONT', 'PERCENTILE_DISC', 'PLACING', 'PLAN', 'PLI', 'POSITION', 'POSTFIX', 'POWER', 'PRECEDING', 'PRECISION', 'PREFIX', 'PREORDER', 'PREPARE', 'PREPARED', 'PRESERVE', 'PRIMARY', 'PRINT', 'PRIOR', 'PRIVILEGES', 'PROC', 'PROCEDURAL', 'PROCEDURE', 'PROCESS', 'PROCESSLIST', 'PUBLIC', 'PURGE', 'QUOTE', 'RAID0', 'RAISERROR', 'RANGE', 'RANK', 'RAW', 'READ', 'READS', 'READTEXT', 'REAL', 'RECHECK', 'RECONFIGURE', 'RECURSIVE', 'REF', 'REFERENCES', 'REFERENCING', 'REGEXP', 'REGR_AVGX', 'REGR_AVGY', 'REGR_COUNT', 'REGR_INTERCEPT', 'REGR_R2', 'REGR_SLOPE', 'REGR_SXX', 'REGR_SXY', 'REGR_SYY', 'REINDEX', 'RELATIVE', 'RELEASE', 'RELOAD', 'RENAME', 'REPEAT', 'REPEATABLE', 'REPLACE', 'REPLICATION', 'REQUIRE', 'RESET', 'RESIGNAL', 'RESOURCE', 'RESTART', 'RESTORE', 'RESTRICT', 'RESULT', 'RETURN', 'RETURNED_CARDINALITY', 'RETURNED_LENGTH', 'RETURNED_OCTET_LENGTH', 'RETURNED_SQLSTATE', 'RETURNS', 'REVOKE', 'RIGHT', 'RLIKE', 'ROLE', 'ROLLBACK', 'ROLLUP', 'ROUTINE', 'ROUTINE_CATALOG', 'ROUTINE_NAME', 'ROUTINE_SCHEMA', 'ROW', 'ROW_COUNT', 'ROW_NUMBER', 'ROWCOUNT', 'ROWGUIDCOL', 'ROWID', 'ROWNUM', 'ROWS', 'RULE', 'SAVE', 'SAVEPOINT', 'SCALE', 'SCHEMA', 'SCHEMA_NAME', 'SCHEMAS', 'SCOPE', 'SCOPE_CATALOG', 'SCOPE_NAME', 'SCOPE_SCHEMA', 'SCROLL', 'SEARCH', 'SECOND', 'SECOND_MICROSECOND', 'SECTION', 'SECURITY', 'SELECT', 'SELF', 'SENSITIVE', 'SEPARATOR', 'SEQUENCE', 'SERIALIZABLE', 'SERVER_NAME', 'SESSION', 'SESSION_USER', 'SET', 'SETOF', 'SETS', 'SETUSER', 'SHARE', 'SHOW', 'SHUTDOWN', 'SIGNAL', 'SIMILAR', 'SIMPLE', 'SIZE', 'SMALLINT', 'SOME', 'SONAME', 'SOURCE', 'SPACE', 'SPATIAL', 'SPECIFIC', 'SPECIFIC_NAME', 'SPECIFICTYPE', 'SQL', 'SQL_BIG_RESULT', 'SQL_BIG_SELECTS', 'SQL_BIG_TABLES', 'SQL_CALC_FOUND_ROWS', 'SQL_LOG_OFF', 'SQL_LOG_UPDATE', 'SQL_LOW_PRIORITY_UPDATES', 'SQL_SELECT_LIMIT', 'SQL_SMALL_RESULT', 'SQL_WARNINGS', 'SQLCA', 'SQLCODE', 'SQLERROR', 'SQLEXCEPTION', 'SQLSTATE', 'SQLWARNING', 'SQRT', 'SSL', 'STABLE', 'START', 'STARTING', 'STATE', 'STATEMENT', 'STATIC', 'STATISTICS', 'STATUS', 'STDDEV_POP', 'STDDEV_SAMP', 'STDIN', 'STDOUT', 'STORAGE', 'STRAIGHT_JOIN', 'STRICT', 'STRING', 'STRUCTURE', 'STYLE', 'SUBCLASS_ORIGIN', 'SUBLIST', 'SUBMULTISET', 'SUBSTRING', 'SUCCESSFUL', 'SUM', 'SUPERUSER', 'SYMMETRIC', 'SYNONYM', 'SYSDATE', 'SYSID', 'SYSTEM', 'SYSTEM_USER', 'TABLE', 'TABLE_NAME', 'TABLES', 'TABLESAMPLE', 'TABLESPACE', 'TEMP', 'TEMPLATE', 'TEMPORARY', 'TERMINATE', 'TERMINATED', 'TEXT', 'TEXTSIZE', 'THAN', 'THEN', 'TIES', 'TIME', 'TIMESTAMP', 'TIMEZONE_HOUR', 'TIMEZONE_MINUTE', 'TINYBLOB', 'TINYINT', 'TINYTEXT', 'TO', 'TOAST', 'TOP', 'TOP_LEVEL_COUNT', 'TRAILING', 'TRAN', 'TRANSACTION', 'TRANSACTION_ACTIVE', 'TRANSACTIONS_COMMITTED', 'TRANSACTIONS_ROLLED_BACK', 'TRANSFORM', 'TRANSFORMS', 'TRANSLATE', 'TRANSLATION', 'TREAT', 'TRIGGER', 'TRIGGER_CATALOG', 'TRIGGER_NAME', 'TRIGGER_SCHEMA', 'TRIM', 'TRUE', 'TRUNCATE', 'TRUSTED', 'TSEQUAL', 'TYPE', 'UESCAPE', 'UID', 'UNBOUNDED', 'UNCOMMITTED', 'UNDER', 'UNDO', 'UNENCRYPTED', 'UNION', 'UNIQUE', 'UNKNOWN', 'UNLISTEN', 'UNLOCK', 'UNNAMED', 'UNNEST', 'UNSIGNED', 'UNTIL', 'UPDATE', 'UPDATETEXT', 'UPPER', 'USAGE', 'USE', 'USER', 'USER_DEFINED_TYPE_CATALOG', 'USER_DEFINED_TYPE_CODE', 'USER_DEFINED_TYPE_NAME', 'USER_DEFINED_TYPE_SCHEMA', 'USING', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'VACUUM', 'VALID', 'VALIDATE', 'VALIDATOR', 'VALUE', 'VALUES', 'VAR_POP', 'VAR_SAMP', 'VARBINARY', 'VARCHAR', 'VARCHAR2', 'VARCHARACTER', 'VARIABLE', 'VARIABLES', 'VARYING', 'VERBOSE', 'VIEW', 'VOLATILE', 'WAITFOR', 'WHEN', 'WHENEVER', 'WHERE', 'WHILE', 'WIDTH_BUCKET', 'WINDOW', 'WITH', 'WITHIN', 'WITHOUT', 'WORK', 'WRITE', 'WRITETEXT', 'X509', 'XOR', 'YEAR', 'YEAR_MONTH', 'ZEROFILL', 'ZONE']
+            # Checking for Field name
+            if FieldEntry.get().upper() in reversedKerwords:
+                NoNumErrorMSG(
+                    "Field name cannot be a reserved keyword")
+                return
+            # Checking for Table name
+            if BundleEntry.get().upper() in reversedKerwords:
+                NoNumErrorMSG(
+                    "Bundle name cannot be a reserved keyword")
                 return
 
             # To check if Fieldname and Bundle Name is not same
             if FieldEntry.get() == BundleEntry.get():
                 NoNumErrorMSG("Field name and Bundle name cannot be same")
+                return
+            
+            # To check if the name already exists
+            if FieldEntry.get() in self._UserInstance.getDB():
+                NoNumErrorMSG("This Field name already exists")
                 return
 
             # To check if total and passing marks are numerical values
@@ -500,65 +626,110 @@ class Page2(Page1):
                     "Passing Marks cannot be greater than Total Marks")
                 return
 
-            # To Create a new Bundle
+            # Checking if the given StudentIDs are valid, if not then raise error msg
+            def findRange(lowPRN, highPRN):
+                """
+                This function checks if the given studentID rage is valid
+                """
+                def refinePRN(prn):
+                    """
+                    A function returns two strings by dividing 
+                    the given StudenID at the last alphabet
+                    """
+                    l = len(prn) - 1
+
+                    # if cannot be divided then returs False
+                    if prn[l].isdigit() == False:
+                        return False, False
+
+                    # finding the last alphabet
+                    for i in range(1, l+1):
+                        if prn[l-i].isdigit() == False:
+                            return prn[:l-i+1], prn[l-i+1:]
+
+                # To check if the given StudenIDs are digits or not
+                newhighPRN = refinePRN(
+                    highPRN) if highPRN.isdigit() == False else ("", highPRN)
+                newlowPRN = refinePRN(
+                    lowPRN) if lowPRN.isdigit() == False else ("", lowPRN)
+
+                # if the StudenID cannot be divided futher
+                if newhighPRN[0] == False or newlowPRN[0] == False:
+                    raise Exception("No number present at the end of RollNo")
+
+                # if the non numeric part is not similar then raise exception
+                if newhighPRN[0] != newlowPRN[0]:
+                    raise Exception("Invalid StudentIDs")
+
+                # finding the difference of student roll numbers
+                diff = int(newhighPRN[1]) - int(newlowPRN[1]) + 1
+
+                if diff <= 0:
+                    raise Exception("The order of numbers is in non-increasing order")
+                
+                return newlowPRN, diff
+
             try:
-                def start_work():
-                    self.frame2.config(cursor="watch")
-                    t = threading.Thread(target=do_work)
-                    t.start()
-
-                def do_work():
-                    self._UserInstance.createDB(FieldEntry.get(), BundleEntry.get(),
-                                                RollStart.get(), RollEnd.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
-                    # Initialising DBname, TbName, totalMarks and passingMarks variables to store the data on this instance
-                    self.DBname = FieldEntry.get()
-                    self.TbName = BundleEntry.get()
-                    self.totalMarks = float(TotalMarksEntry.get())
-                    self.passingMarks = float(PassingMarksEntry.get())
-
-                    # To add list of StudentID in the roll number Combobox
-                    self.RollNo.config(values=self._UserInstance.StudentIDlist(
-                        self.DBname, self.TbName))
-
-                    # Adding DBname, TbName and totalMarks to the preview frame5
-                    self.canvas5.itemconfig(self.DBtext, text=self.DBname)
-                    self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
-                    self.canvas5.itemconfig(
-                        self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
-                    self.canvas5.itemconfig(
-                        self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
-
-                    self.show_frame4()
-                    self.frame2.after(0, lambda: self.frame2.config(cursor=""))
-
-                start_work()
-
+                newlowprn, diff = findRange(RollStart.get(), RollEnd.get())
             except Exception as e:
-                self.frame2.after(0, lambda: self.frame2.config(cursor=""))
+                self.frame3.after(0, lambda: self.frame3.config(cursor=""))
                 NoNumErrorMSG(e)
                 return
+            
+            # To Create a new Bundle
+            def start_work():
+                self.frame2.config(cursor="watch")
+                t = threading.Thread(target=do_work)
+                t.start()
+
+            def do_work():
+
+                # Hiding the back button while processing
+                canvas2.itemconfig(2, state="hidden")
+
+                # Creating a empty database with a empty table
+                self._UserInstance.createDB(FieldEntry.get(), BundleEntry.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
+
+                canvas2.itemconfig(16, state="normal")
+                # Adding all rows into the given table
+                progBarVar = 0
+                progBarFact = int(100/diff)
+                progress_bar['value'] = progBarVar
+                for i in range(diff):
+                    self._UserInstance.insertSingleRow(FieldEntry.get(), BundleEntry.get(), newlowprn, i)
+                    progBarVar += progBarFact
+                    progress_bar['value'] = progBarVar
+                    progress_bar.update()
+
+                # Initialising DBname, TbName, totalMarks and passingMarks variables to store the data on this instance
+                self.DBname = FieldEntry.get()
+                self.TbName = BundleEntry.get()
+                self.totalMarks = float(TotalMarksEntry.get())
+                self.passingMarks = float(PassingMarksEntry.get())
+
+                # To add list of StudentID in the roll number Combobox
+                self.RollNo.config(values=self._UserInstance.StudentIDlist(
+                    self.DBname, self.TbName))
+
+                # Adding DBname, TbName and totalMarks to the preview frame5
+                self.canvas5.itemconfig(self.DBtext, text=self.DBname)
+                self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
+                self.canvas5.itemconfig(
+                    self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
+                self.canvas5.itemconfig(
+                    self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
+
+                canvas2.itemconfig(2, state="normal")
+                canvas2.itemconfig(16, state="hidden")
+                self.show_frame4()
+                self.frame2.after(0, lambda: self.frame2.config(cursor=""))
+
+            start_work()
 
         # Saving the details and forwarding to entry frame
         b2 = tk.Button(self.frame2, text="Next",
                        command=createnewField, padx=20, pady=5)
         canvas2.create_window(360, 340, window=b2)
-
-        def goingBack():
-            """
-            This function is called by the back2 button.
-            It clears all the entry boxes and goes to page1
-            """
-            # Clearing the entry fields before leaving this frame
-            FieldEntry.delete(0, tk.END)
-            BundleEntry.delete(0, tk.END)
-            RollStart.delete(0, tk.END)
-            RollEnd.delete(0, tk.END)
-            TotalMarksEntry.delete(0, tk.END)
-            self.show_frame1()
-
-        # Adding the Back Button
-        back2 = tk.Button(self.frame2, text="Back", command=goingBack)
-        canvas2.create_window(40, 30, window=back2)
 
         # Info button
         infoBtn = tk.Button(self.frame2, image=self.InfoImg,
@@ -575,29 +746,19 @@ class Page3(Page2):
     def __init__(self) -> None:
         super().__init__()
 
-        self.frame3 = tk.Frame(self)
+        self.frame3 = ttk.Frame(self)
 
         # Creating Page1 Canvas
         canvas3 = tk.Canvas(self.frame3, width=750, height=450, bg="black")
         canvas3.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas3.create_image(80, 386, image=self.background_image, anchor="nw")
-
-        def goingBack():
-            """
-            This function is called by the back2 button.
-            It clears all the entry boxes and goes to page1
-            """
-            # Clearing the entry fields before leaving this frame
-            BundleEntry.delete(0, tk.END)
-            RollStart.delete(0, tk.END)
-            RollEnd.delete(0, tk.END)
-            TotalMarksEntry.delete(0, tk.END)
-            self.show_frame1()
+        # canvas3.create_image(80, 386, image=self.background_image, anchor="nw")
+        canvas3.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Adding the Back Button
-        back3 = tk.Button(self.frame3, text="Back", command=goingBack)
+        back3 = tk.Button(self.frame3, text="Back", command=self.show_frame1)
         canvas3.create_window(40, 30, window=back3)
 
         # Adding the Bundle Entry
@@ -637,6 +798,11 @@ class Page3(Page2):
         PassingMarksEntry.insert(0, "30")
         canvas3.create_window(580, 290, window=PassingMarksEntry)
 
+        # Create a progress bar widget
+        progress_bar = ttk.Progressbar(
+            self.frame3, orient="horizontal", mode="determinate", length=750, style="success.Horizontal.TProgressbar")
+        canvas3.create_window(375, 400, window=progress_bar, state="hidden")
+
         def NoNumErrorMSG(e):
             """
             This function creates a error msg
@@ -654,13 +820,39 @@ class Page3(Page2):
                 NoNumErrorMSG("Some Feilds are empty")
                 return
 
-            # To check if Field or Bundle names are not mysql keywords
-            if BundleEntry.get() == "as":
-                NoNumErrorMSG("Feild or Table name cannot be 'as'")
+            # To check if first character of the name is not number
+            if BundleEntry.get()[0].isdigit():
+                NoNumErrorMSG(
+                    "First character of the Bundle name cannot be numeric")
                 return
 
+            # Checking if any special charachters exsist in the Bundle name
+            not_allowed_chars = [' ', '.', ',', ':', ';', '/', '\\', '[',
+                                 ']', '{', '}', '(', ')', '<', '>', '|', '?', '*', "'", '"', '-', '+', '*']
+
+            def is_valid_table_name(table_name):
+                for char in not_allowed_chars:
+                    if char in table_name:
+                        return False
+                return True
+            if is_valid_table_name(BundleEntry.get()) == False:
+                NoNumErrorMSG(
+                    "Special charachters and spaces not allowed in Bundle name")
+                return
+
+            # To check if Field or Bundle names are not mysql keywords
+            reversedKerwords = ['A', 'ABORT', 'ABS', 'ABSOLUTE', 'ACCESS', 'ACTION', 'ADA', 'ADD', 'ADMIN', 'AFTER', 'AGGREGATE', 'ALIAS', 'ALL', 'ALLOCATE', 'ALSO', 'ALTER', 'ALWAYS', 'ANALYSE', 'ANALYZE', 'AND', 'ANY', 'ARE', 'ARRAY', 'AS', 'ASC', 'ASENSITIVE', 'ASSERTION', 'ASSIGNMENT', 'ASYMMETRIC', 'AT', 'ATOMIC', 'ATTRIBUTE', 'ATTRIBUTES', 'AUDIT', 'AUTHORIZATION', 'AUTO_INCREMENT', 'AVG', 'AVG_ROW_LENGTH', 'BACKUP', 'BACKWARD', 'BEFORE', 'BEGIN', 'BERNOULLI', 'BETWEEN', 'BIGINT', 'BINARY', 'BIT', 'BIT_LENGTH', 'BITVAR', 'BLOB', 'BOOL', 'BOOLEAN', 'BOTH', 'BREADTH', 'BREAK', 'BROWSE', 'BULK', 'BY', 'C', 'CACHE', 'CALL', 'CALLED', 'CARDINALITY', 'CASCADE', 'CASCADED', 'CASE', 'CAST', 'CATALOG', 'CATALOG_NAME', 'CEIL', 'CEILING', 'CHAIN', 'CHANGE', 'CHAR', 'CHAR_LENGTH', 'CHARACTER', 'CHARACTER_LENGTH', 'CHARACTER_SET_CATALOG', 'CHARACTER_SET_NAME', 'CHARACTER_SET_SCHEMA', 'CHARACTERISTICS', 'CHARACTERS', 'CHECK', 'CHECKED', 'CHECKPOINT', 'CHECKSUM', 'CLASS', 'CLASS_ORIGIN', 'CLOB', 'CLOSE', 'CLUSTER', 'CLUSTERED', 'COALESCE', 'COBOL', 'COLLATE', 'COLLATION', 'COLLATION_CATALOG', 'COLLATION_NAME', 'COLLATION_SCHEMA', 'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COLUMNS', 'COMMAND_FUNCTION', 'COMMAND_FUNCTION_CODE', 'COMMENT', 'COMMIT', 'COMMITTED', 'COMPLETION', 'COMPRESS', 'COMPUTE', 'CONDITION', 'CONDITION_NUMBER', 'CONNECT', 'CONNECTION', 'CONNECTION_NAME', 'CONSTRAINT', 'CONSTRAINT_CATALOG', 'CONSTRAINT_NAME', 'CONSTRAINT_SCHEMA', 'CONSTRAINTS', 'CONSTRUCTOR', 'CONTAINS', 'CONTAINSTABLE', 'CONTINUE', 'CONVERSION', 'CONVERT', 'COPY', 'CORR', 'CORRESPONDING', 'COUNT', 'COVAR_POP', 'COVAR_SAMP', 'CREATE', 'CREATEDB', 'CREATEROLE', 'CREATEUSER', 'CROSS', 'CSV', 'CUBE', 'CUME_DIST', 'CURRENT', 'CURRENT_DATE', 'CURRENT_DEFAULT_TRANSFORM_GROUP', 'CURRENT_PATH', 'CURRENT_ROLE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_TRANSFORM_GROUP_FOR_TYPE', 'CURRENT_USER', 'CURSOR', 'CURSOR_NAME', 'CYCLE', 'DATA', 'DATABASE', 'DATABASES', 'DATE', 'DATETIME', 'DATETIME_INTERVAL_CODE', 'DATETIME_INTERVAL_PRECISION', 'DAY', 'DAY_HOUR', 'DAY_MICROSECOND', 'DAY_MINUTE', 'DAY_SECOND', 'DAYOFMONTH', 'DAYOFWEEK', 'DAYOFYEAR', 'DBCC', 'DEALLOCATE', 'DEC', 'DECIMAL', 'DECLARE', 'DEFAULT', 'DEFAULTS', 'DEFERRABLE', 'DEFERRED', 'DEFINED', 'DEFINER', 'DEGREE', 'DELAY_KEY_WRITE', 'DELAYED', 'DELETE', 'DELIMITER', 'DELIMITERS', 'DENSE_RANK', 'DENY', 'DEPTH', 'DEREF', 'DERIVED', 'DESC', 'DESCRIBE', 'DESCRIPTOR', 'DESTROY', 'DESTRUCTOR', 'DETERMINISTIC', 'DIAGNOSTICS', 'DICTIONARY', 'DISABLE', 'DISCONNECT', 'DISK', 'DISPATCH', 'DISTINCT', 'DISTINCTROW', 'DISTRIBUTED', 'DIV', 'DO', 'DOMAIN', 'DOUBLE', 'DROP', 'DUAL', 'DUMMY', 'DUMP', 'DYNAMIC', 'DYNAMIC_FUNCTION', 'DYNAMIC_FUNCTION_CODE', 'EACH', 'ELEMENT', 'ELSE', 'ELSEIF', 'ENABLE', 'ENCLOSED', 'ENCODING', 'ENCRYPTED', 'END', 'END-EXEC', 'ENUM', 'EQUALS', 'ERRLVL', 'ESCAPE', 'ESCAPED', 'EVERY', 'EXCEPT', 'EXCEPTION', 'EXCLUDE', 'EXCLUDING', 'EXCLUSIVE', 'EXEC', 'EXECUTE', 'EXISTING', 'EXISTS', 'EXIT', 'EXP', 'EXPLAIN', 'EXTERNAL', 'EXTRACT', 'FALSE', 'FETCH', 'FIELDS', 'FILE', 'FILLFACTOR', 'FILTER', 'FINAL', 'FIRST', 'FLOAT', 'FLOAT4', 'FLOAT8', 'FLOOR', 'FLUSH', 'FOLLOWING', 'FOR', 'FORCE', 'FOREIGN', 'FORTRAN', 'FORWARD', 'FOUND', 'FREE', 'FREETEXT', 'FREETEXTTABLE', 'FREEZE', 'FROM', 'FULL', 'FULLTEXT', 'FUNCTION', 'FUSION', 'G', 'GENERAL', 'GENERATED', 'GET', 'GLOBAL', 'GO', 'GOTO', 'GRANT', 'GRANTED', 'GRANTS', 'GREATEST', 'GROUP', 'GROUPING', 'HANDLER', 'HAVING', 'HEADER', 'HEAP', 'HIERARCHY', 'HIGH_PRIORITY', 'HOLD', 'HOLDLOCK', 'HOST', 'HOSTS', 'HOUR', 'HOUR_MICROSECOND', 'HOUR_MINUTE', 'HOUR_SECOND', 'IDENTIFIED', 'IDENTITY', 'IDENTITY_INSERT', 'IDENTITYCOL', 'IF', 'IGNORE', 'ILIKE', 'IMMEDIATE', 'IMMUTABLE', 'IMPLEMENTATION', 'IMPLICIT', 'IN', 'INCLUDE', 'INCLUDING', 'INCREMENT', 'INDEX', 'INDICATOR', 'INFILE', 'INFIX', 'INHERIT', 'INHERITS', 'INITIAL', 'INITIALIZE', 'INITIALLY', 'INNER', 'INOUT', 'INPUT', 'INSENSITIVE', 'INSERT', 'INSERT_ID', 'INSTANCE', 'INSTANTIABLE', 'INSTEAD', 'INT', 'INT1', 'INT2', 'INT3', 'INT4', 'INT8', 'INTEGER', 'INTERSECT', 'INTERSECTION', 'INTERVAL', 'INTO', 'INVOKER', 'IS', 'ISAM', 'ISNULL', 'ISOLATION', 'ITERATE', 'JOIN', 'K', 'KEY', 'KEY_MEMBER', 'KEY_TYPE', 'KEYS', 'KILL', 'LANCOMPILER', 'LANGUAGE', 'LARGE', 'LAST', 'LAST_INSERT_ID', 'LATERAL', 'LEAD', 'LEADING', 'LEAST', 'LEAVE', 'LEFT', 'LENGTH', 'LESS', 'LEVEL', 'LIKE', 'LIMIT', 'LINENO', 'LINES', 'LISTEN', 'LN', 'LOAD', 'LOCAL', 'LOCALTIME', 'LOCALTIMESTAMP', 'LOCATION', 'LOCATOR', 'LOCK', 'LOGIN', 'LOGS', 'LONG', 'LONGBLOB', 'LONGTEXT', 'LOOP', 'LOW_PRIORITY', 'LOWER', 'M', 'MAP', 'MATCH', 'MATCHED', 'MAX', 'MAX_ROWS', 'MAXEXTENTS', 'MAXVALUE', 'MEDIUMBLOB', 'MEDIUMINT', 'MEDIUMTEXT', 'MEMBER', 'MERGE', 'MESSAGE_LENGTH', 'MESSAGE_OCTET_LENGTH', 'MESSAGE_TEXT', 'METHOD', 'MIDDLEINT', 'MIN', 'MIN_ROWS', 'MINUS', 'MINUTE', 'MINUTE_MICROSECOND', 'MINUTE_SECOND', 'MINVALUE', 'MLSLABEL', 'MOD',
+                                'MODE', 'MODIFIES', 'MODIFY', 'MODULE', 'MONTH', 'MONTHNAME', 'MORE', 'MOVE', 'MULTISET', 'MUMPS', 'MYISAM', 'NAME', 'NAMES', 'NATIONAL', 'NATURAL', 'NCHAR', 'NCLOB', 'NESTING', 'NEW', 'NEXT', 'NO', 'NO_WRITE_TO_BINLOG', 'NOAUDIT', 'NOCHECK', 'NOCOMPRESS', 'NOCREATEDB', 'NOCREATEROLE', 'NOCREATEUSER', 'NOINHERIT', 'NOLOGIN', 'NONCLUSTERED', 'NONE', 'NORMALIZE', 'NORMALIZED', 'NOSUPERUSER', 'NOT', 'NOTHING', 'NOTIFY', 'NOTNULL', 'NOWAIT', 'NULL', 'NULLABLE', 'NULLIF', 'NULLS', 'NUMBER', 'NUMERIC', 'OBJECT', 'OCTET_LENGTH', 'OCTETS', 'OF', 'OFF', 'OFFLINE', 'OFFSET', 'OFFSETS', 'OIDS', 'OLD', 'ON', 'ONLINE', 'ONLY', 'OPEN', 'OPENDATASOURCE', 'OPENQUERY', 'OPENROWSET', 'OPENXML', 'OPERATION', 'OPERATOR', 'OPTIMIZE', 'OPTION', 'OPTIONALLY', 'OPTIONS', 'OR', 'ORDER', 'ORDERING', 'ORDINALITY', 'OTHERS', 'OUT', 'OUTER', 'OUTFILE', 'OUTPUT', 'OVER', 'OVERLAPS', 'OVERLAY', 'OVERRIDING', 'OWNER', 'PACK_KEYS', 'PAD', 'PARAMETER', 'PARAMETER_MODE', 'PARAMETER_NAME', 'PARAMETER_ORDINAL_POSITION', 'PARAMETER_SPECIFIC_CATALOG', 'PARAMETER_SPECIFIC_NAME', 'PARAMETER_SPECIFIC_SCHEMA', 'PARAMETERS', 'PARTIAL', 'PARTITION', 'PASCAL', 'PASSWORD', 'PATH', 'PCTFREE', 'PERCENT', 'PERCENT_RANK', 'PERCENTILE_CONT', 'PERCENTILE_DISC', 'PLACING', 'PLAN', 'PLI', 'POSITION', 'POSTFIX', 'POWER', 'PRECEDING', 'PRECISION', 'PREFIX', 'PREORDER', 'PREPARE', 'PREPARED', 'PRESERVE', 'PRIMARY', 'PRINT', 'PRIOR', 'PRIVILEGES', 'PROC', 'PROCEDURAL', 'PROCEDURE', 'PROCESS', 'PROCESSLIST', 'PUBLIC', 'PURGE', 'QUOTE', 'RAID0', 'RAISERROR', 'RANGE', 'RANK', 'RAW', 'READ', 'READS', 'READTEXT', 'REAL', 'RECHECK', 'RECONFIGURE', 'RECURSIVE', 'REF', 'REFERENCES', 'REFERENCING', 'REGEXP', 'REGR_AVGX', 'REGR_AVGY', 'REGR_COUNT', 'REGR_INTERCEPT', 'REGR_R2', 'REGR_SLOPE', 'REGR_SXX', 'REGR_SXY', 'REGR_SYY', 'REINDEX', 'RELATIVE', 'RELEASE', 'RELOAD', 'RENAME', 'REPEAT', 'REPEATABLE', 'REPLACE', 'REPLICATION', 'REQUIRE', 'RESET', 'RESIGNAL', 'RESOURCE', 'RESTART', 'RESTORE', 'RESTRICT', 'RESULT', 'RETURN', 'RETURNED_CARDINALITY', 'RETURNED_LENGTH', 'RETURNED_OCTET_LENGTH', 'RETURNED_SQLSTATE', 'RETURNS', 'REVOKE', 'RIGHT', 'RLIKE', 'ROLE', 'ROLLBACK', 'ROLLUP', 'ROUTINE', 'ROUTINE_CATALOG', 'ROUTINE_NAME', 'ROUTINE_SCHEMA', 'ROW', 'ROW_COUNT', 'ROW_NUMBER', 'ROWCOUNT', 'ROWGUIDCOL', 'ROWID', 'ROWNUM', 'ROWS', 'RULE', 'SAVE', 'SAVEPOINT', 'SCALE', 'SCHEMA', 'SCHEMA_NAME', 'SCHEMAS', 'SCOPE', 'SCOPE_CATALOG', 'SCOPE_NAME', 'SCOPE_SCHEMA', 'SCROLL', 'SEARCH', 'SECOND', 'SECOND_MICROSECOND', 'SECTION', 'SECURITY', 'SELECT', 'SELF', 'SENSITIVE', 'SEPARATOR', 'SEQUENCE', 'SERIALIZABLE', 'SERVER_NAME', 'SESSION', 'SESSION_USER', 'SET', 'SETOF', 'SETS', 'SETUSER', 'SHARE', 'SHOW', 'SHUTDOWN', 'SIGNAL', 'SIMILAR', 'SIMPLE', 'SIZE', 'SMALLINT', 'SOME', 'SONAME', 'SOURCE', 'SPACE', 'SPATIAL', 'SPECIFIC', 'SPECIFIC_NAME', 'SPECIFICTYPE', 'SQL', 'SQL_BIG_RESULT', 'SQL_BIG_SELECTS', 'SQL_BIG_TABLES', 'SQL_CALC_FOUND_ROWS', 'SQL_LOG_OFF', 'SQL_LOG_UPDATE', 'SQL_LOW_PRIORITY_UPDATES', 'SQL_SELECT_LIMIT', 'SQL_SMALL_RESULT', 'SQL_WARNINGS', 'SQLCA', 'SQLCODE', 'SQLERROR', 'SQLEXCEPTION', 'SQLSTATE', 'SQLWARNING', 'SQRT', 'SSL', 'STABLE', 'START', 'STARTING', 'STATE', 'STATEMENT', 'STATIC', 'STATISTICS', 'STATUS', 'STDDEV_POP', 'STDDEV_SAMP', 'STDIN', 'STDOUT', 'STORAGE', 'STRAIGHT_JOIN', 'STRICT', 'STRING', 'STRUCTURE', 'STYLE', 'SUBCLASS_ORIGIN', 'SUBLIST', 'SUBMULTISET', 'SUBSTRING', 'SUCCESSFUL', 'SUM', 'SUPERUSER', 'SYMMETRIC', 'SYNONYM', 'SYSDATE', 'SYSID', 'SYSTEM', 'SYSTEM_USER', 'TABLE', 'TABLE_NAME', 'TABLES', 'TABLESAMPLE', 'TABLESPACE', 'TEMP', 'TEMPLATE', 'TEMPORARY', 'TERMINATE', 'TERMINATED', 'TEXT', 'TEXTSIZE', 'THAN', 'THEN', 'TIES', 'TIME', 'TIMESTAMP', 'TIMEZONE_HOUR', 'TIMEZONE_MINUTE', 'TINYBLOB', 'TINYINT', 'TINYTEXT', 'TO', 'TOAST', 'TOP', 'TOP_LEVEL_COUNT', 'TRAILING', 'TRAN', 'TRANSACTION', 'TRANSACTION_ACTIVE', 'TRANSACTIONS_COMMITTED', 'TRANSACTIONS_ROLLED_BACK', 'TRANSFORM', 'TRANSFORMS', 'TRANSLATE', 'TRANSLATION', 'TREAT', 'TRIGGER', 'TRIGGER_CATALOG', 'TRIGGER_NAME', 'TRIGGER_SCHEMA', 'TRIM', 'TRUE', 'TRUNCATE', 'TRUSTED', 'TSEQUAL', 'TYPE', 'UESCAPE', 'UID', 'UNBOUNDED', 'UNCOMMITTED', 'UNDER', 'UNDO', 'UNENCRYPTED', 'UNION', 'UNIQUE', 'UNKNOWN', 'UNLISTEN', 'UNLOCK', 'UNNAMED', 'UNNEST', 'UNSIGNED', 'UNTIL', 'UPDATE', 'UPDATETEXT', 'UPPER', 'USAGE', 'USE', 'USER', 'USER_DEFINED_TYPE_CATALOG', 'USER_DEFINED_TYPE_CODE', 'USER_DEFINED_TYPE_NAME', 'USER_DEFINED_TYPE_SCHEMA', 'USING', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'VACUUM', 'VALID', 'VALIDATE', 'VALIDATOR', 'VALUE', 'VALUES', 'VAR_POP', 'VAR_SAMP', 'VARBINARY', 'VARCHAR', 'VARCHAR2', 'VARCHARACTER', 'VARIABLE', 'VARIABLES', 'VARYING', 'VERBOSE', 'VIEW', 'VOLATILE', 'WAITFOR', 'WHEN', 'WHENEVER', 'WHERE', 'WHILE', 'WIDTH_BUCKET', 'WINDOW', 'WITH', 'WITHIN', 'WITHOUT', 'WORK', 'WRITE', 'WRITETEXT', 'X509', 'XOR', 'YEAR', 'YEAR_MONTH', 'ZEROFILL', 'ZONE']
+            if BundleEntry.get().upper() in reversedKerwords:
+                NoNumErrorMSG("Bundle name cannot be a reserved keyword")
+                return
             if BundleEntry.get()[0].isdigit() == True:
                 NoNumErrorMSG("First letter cannot be numeric")
+                return
+            
+            # checking if this bundle name already exists
+            if BundleEntry.get() in self._UserInstance.getTables(self.DBname):
+                NoNumErrorMSG("This Bundle name already exists")
                 return
 
             # To check if total and passing marks are numerical values
@@ -678,43 +870,106 @@ class Page3(Page2):
                     "Passing Marks cannot be greater than Total Marks")
                 return
 
-            # To Create a new Bundle
+            # Checking if the given StudentIDs are valid, if not then raise error msg
+            def findRange(lowPRN, highPRN):
+                """
+                This function checks if the given studentID rage is valid
+                """
+                def refinePRN(prn):
+                    """
+                    A function returns two strings by dividing 
+                    the given StudenID at the last alphabet
+                    """
+                    l = len(prn) - 1
+
+                    # if cannot be divided then returs False
+                    if prn[l].isdigit() == False:
+                        return False, False
+
+                    # finding the last alphabet
+                    for i in range(1, l+1):
+                        if prn[l-i].isdigit() == False:
+                            return prn[:l-i+1], prn[l-i+1:]
+
+                # To check if the given StudenIDs are digits or not
+                newhighPRN = refinePRN(
+                    highPRN) if highPRN.isdigit() == False else ("", highPRN)
+                newlowPRN = refinePRN(
+                    lowPRN) if lowPRN.isdigit() == False else ("", lowPRN)
+
+                # if the StudenID cannot be divided futher
+                if newhighPRN[0] == False or newlowPRN[0] == False:
+                    raise Exception("No number present at the end of RollNo")
+
+                # if the non numeric part is not similar then raise exception
+                if newhighPRN[0] != newlowPRN[0]:
+                    raise Exception("Invalid StudentIDs")
+
+                # finding the difference of student roll numbers
+                diff = int(newhighPRN[1]) - int(newlowPRN[1]) + 1
+
+                if diff <= 0:
+                    raise Exception("The order of numbers is in non-increasing order")
+                
+                return newlowPRN, diff
+
             try:
-                def start_work():
-                    self.frame3.config(cursor="watch")
-                    t = threading.Thread(target=do_work)
-                    t.start()
-
-                def do_work():
-                    self._UserInstance.createTb(self.DBname, BundleEntry.get(), RollStart.get(),
-                                                RollEnd.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
-                    # Initialising TbName, totalMarks and passingMarks variables to store the data on this instance
-                    self.TbName = BundleEntry.get()
-                    self.totalMarks = TotalMarksEntry.get()
-                    self.passingMarks = PassingMarksEntry.get()
-
-                    # To add list of StudentID in the roll number Combobox
-                    # Also ignoring the first value cause it's the Total Marks
-                    self.RollNo.config(values=self._UserInstance.StudentIDlist(
-                        self.DBname, self.TbName))
-
-                    # Adding DBname, TbName and totalMarks to the preview frame5
-                    self.canvas5.itemconfig(self.DBtext, text=self.DBname)
-                    self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
-                    self.canvas5.itemconfig(
-                        self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
-                    self.canvas5.itemconfig(
-                        self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
-
-                    self.show_frame4()
-                    self.frame3.after(0, lambda: self.frame3.config(cursor=""))
-
-                start_work()
-
+                newlowprn, diff = findRange(RollStart.get(), RollEnd.get())
             except Exception as e:
                 self.frame3.after(0, lambda: self.frame3.config(cursor=""))
                 NoNumErrorMSG(e)
                 return
+
+            # To Create a new Bundle
+            def start_work():
+                self.frame3.config(cursor="watch")
+                t = threading.Thread(target=do_work)
+                t.start()
+
+            def do_work():
+                
+                # Hiding the back button while processing
+                canvas3.itemconfig(2, state="hidden")
+
+                # Creating a empty database with a empty table
+                self._UserInstance.createTb(self.DBname, BundleEntry.get(), TotalMarksEntry.get(), PassingMarksEntry.get())
+
+                canvas3.itemconfig(14, state="normal")
+                # Adding all rows into the given table
+                progBarVar = 0
+                progBarFact = int(100/diff)
+                progress_bar['value'] = progBarVar
+                for i in range(diff):
+                    self._UserInstance.insertSingleRow(self.DBname, BundleEntry.get(), newlowprn, i)
+                    progBarVar += progBarFact
+                    progress_bar['value'] = progBarVar
+                    progress_bar.update()
+
+                # Initialising TbName, totalMarks and passingMarks variables to store the data on this instance
+                self.TbName = BundleEntry.get()
+                self.totalMarks = TotalMarksEntry.get()
+                self.passingMarks = PassingMarksEntry.get()
+
+                # To add list of StudentID in the roll number Combobox
+                # Also ignoring the first value cause it's the Total Marks
+                self.RollNo.config(values=self._UserInstance.StudentIDlist(
+                    self.DBname, self.TbName))
+
+                # Adding DBname, TbName and totalMarks to the preview frame5
+                self.canvas5.itemconfig(self.DBtext, text=self.DBname)
+                self.canvas5.itemconfig(self.Tbtext, text=self.TbName)
+                self.canvas5.itemconfig(
+                    self.totalMarkstext, text="Total Marks: "+str(self.totalMarks))
+                self.canvas5.itemconfig(
+                    self.passingMarkstext, text="Passing Marks: "+str(self.passingMarks))
+                
+                canvas3.itemconfig(14, state="hidden")
+                canvas3.itemconfig(2, state="normal")
+
+                self.show_frame4()
+                self.frame3.after(0, lambda: self.frame3.config(cursor=""))
+
+            start_work()
 
         # Saving the details and forwarding to entry frame
         b2 = tk.Button(self.frame3, text="Next",
@@ -736,14 +991,16 @@ class Page4(Page3):
     def __init__(self) -> None:
         super().__init__()
 
-        self.frame4 = tk.Frame(self)
+        self.frame4 = ttk.Frame(self)
 
         # Creating Page1 Canvas
         canvas4 = tk.Canvas(self.frame4, width=750, height=450, bg="black")
         canvas4.pack(fill="both", expand=True)
 
         # Calling the background image
-        canvas4.create_image(80, 386, image=self.background_image, anchor="nw")
+        # canvas4.create_image(80, 386, image=self.background_image, anchor="nw")
+        canvas4.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Text, Entry and combobox for adding details and marks
         canvas4.create_text(360, 20, text="Marks Entry",
@@ -1284,7 +1541,7 @@ class Page5(Page4):
     def __init__(self) -> None:
         super().__init__()
 
-        self.frame5 = tk.Frame(self)
+        self.frame5 = ttk.Frame(self)
 
         # Creating Page1 Canvas
         self.canvas5 = tk.Canvas(
@@ -1292,8 +1549,10 @@ class Page5(Page4):
         self.canvas5.pack(fill="both", expand=True)
 
         # Calling the background image
-        self.canvas5.create_image(
-            80, 386, image=self.background_image, anchor="nw")
+        # self.canvas5.create_image(
+        # 80, 386, image=self.background_image, anchor="nw")
+        self.canvas5.create_text(685, 435, text="MGMU", fill="#E4630d", font=TkFont.Font(
+            family="Tibetan Machine Uni", size=23))
 
         # Details
         self.DBtext = self.canvas5.create_text(300, 20, text=str(self.DBname),
@@ -1303,7 +1562,7 @@ class Page5(Page4):
         self.totalMarkstext = self.canvas5.create_text(600, 40, text="Total Marks: "+str(self.totalMarks),
                                                        fill="white", font=self.font3)
         self.passingMarkstext = self.canvas5.create_text(600, 60, text="Passing Marks: "+str(self.passingMarks),
-                                                       fill="white", font=self.font3)
+                                                         fill="white", font=self.font3)
 
         # add a table to the canvas
         self.table = ttk.Treeview(self.canvas5, columns=(
@@ -1361,7 +1620,34 @@ class Page5(Page4):
         self.canvas5.create_window(715, 30, window=infoBtn)
 
 
-class App(Page5):
+class Intro(Page5):
+    """
+    This class creates the frame for the intro video
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        self.intro = ttk.Frame(self)
+        self.canvas0 = tk.Canvas(
+            self.intro, width=750, height=450, bg="black")
+        self.canvas0.pack(fill="both", expand=True)
+
+        self.video_panel = tk.Label(self)
+        self.canvas0.create_window(375, 225, window=self.video_panel)
+
+        self.intro.pack()
+
+        self.play_video()
+
+        self.show_startup()
+
+    def play_video(self):
+        video_player = VideoPlayer("resources/v.mp4")
+        video_player.play(self.video_panel)
+
+
+class App(Intro):
     """
     This class handles the shifting of frames
     """
@@ -1369,10 +1655,23 @@ class App(Page5):
     def __init__(self):
         super().__init__()
 
+    def show_intro(self):
+        """
+        Shows the Intro Page and hides other frames
+        """
+        self.intro.pack()
+        self.startup.pack_forget()
+        self.frame1.pack_forget()
+        self.frame2.pack_forget()
+        self.frame3.pack_forget()
+        self.frame4.pack_forget()
+        self.frame5.pack_forget()
+
     def show_startup(self):
         """
         Shows the StartUp Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack()
         self.frame1.pack_forget()
         self.frame2.pack_forget()
@@ -1384,6 +1683,7 @@ class App(Page5):
         """
         Shows the frame1 Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack_forget()
         self.frame1.pack()
         self.frame2.pack_forget()
@@ -1395,6 +1695,7 @@ class App(Page5):
         """
         Shows the frame2 Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack_forget()
         self.frame1.pack_forget()
         self.frame2.pack()
@@ -1406,6 +1707,7 @@ class App(Page5):
         """
         Shows the frame3 Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack_forget()
         self.frame1.pack_forget()
         self.frame2.pack_forget()
@@ -1417,6 +1719,7 @@ class App(Page5):
         """
         Shows the frame4 Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack_forget()
         self.frame1.pack_forget()
         self.frame2.pack_forget()
@@ -1428,9 +1731,14 @@ class App(Page5):
         """
         Shows the frame5 Page and hides other frames
         """
+        self.intro.pack_forget()
         self.startup.pack_forget()
         self.frame1.pack_forget()
         self.frame2.pack_forget()
         self.frame3.pack_forget()
         self.frame4.pack_forget()
         self.frame5.pack()
+
+
+app = App()
+app.mainloop()
